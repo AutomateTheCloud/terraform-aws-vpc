@@ -1,18 +1,28 @@
-resource "aws_flow_log" "s3" {
-  count                = try(var.flow_log.s3.enable, false) ? 1 : 0
-  log_destination      = try(var.flow_log.s3.s3_bucket_arn, null)
-  log_destination_type = "s3"
-  traffic_type         = try(var.flow_log.s3.traffic_type, "ALL")
+# Copyright 2025 Automate the Cloud Inc.
+# SPDX-License-Identifier: Apache-2.0
 
-  log_format               = try(var.flow_log.s3.log_format, "$${account-id} $${action} $${az-id} $${bytes} $${dstaddr} $${dstport} $${end} $${flow-direction} $${instance-id} $${interface-id} $${log-status} $${packets} $${pkt-dst-aws-service} $${pkt-dstaddr} $${pkt-src-aws-service} $${pkt-srcaddr} $${protocol} $${region} $${srcaddr} $${srcport} $${start} $${sublocation-id} $${sublocation-type} $${subnet-id} $${tcp-flags} $${traffic-path} $${type} $${version} $${vpc-id}")
-  max_aggregation_interval = try(var.flow_log.s3.max_aggregation_interval, 600)
+# Whether flow_log is null is known at plan time even when the bucket is created in the
+# same run, so the count never depends on a value known only after apply.
+resource "aws_flow_log" "s3" {
+  count                    = var.flow_log != null ? 1 : 0
+  region                   = var.region
+  vpc_id                   = aws_vpc.this.id
+  log_destination_type     = "s3"
+  log_destination          = var.flow_log.s3_bucket_arn
+  traffic_type             = var.flow_log.traffic_type
+  log_format               = var.flow_log.log_format
+  max_aggregation_interval = var.flow_log.max_aggregation_interval
+
   destination_options {
-    file_format                = try(var.flow_log.s3.destination_options.file_format, "plain-text")
-    hive_compatible_partitions = try(var.flow_log.s3.destination_options.hive_compatible_partitions, false)
-    per_hour_partition         = try(var.flow_log.s3.destination_options.per_hour_partition, false)
+    file_format                = var.flow_log.file_format
+    hive_compatible_partitions = var.flow_log.hive_compatible_partitions
+    per_hour_partition         = var.flow_log.per_hour_partition
   }
 
-  vpc_id   = aws_vpc.this.id
-  tags     = local.tags
-  provider = aws.this
+  tags = merge(
+    local.tags,
+    {
+      "Name" = "${local.vpc.abbr}-${local.aws.region.abbr}",
+    }
+  )
 }

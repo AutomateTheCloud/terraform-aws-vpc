@@ -1,5 +1,9 @@
+# Copyright 2025 Automate the Cloud Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 resource "aws_vpc" "this" {
-  cidr_block           = "${var.network_ip_network}/${var.network_ip_netmask}"
+  region               = var.region
+  cidr_block           = local.cidr_block
   enable_dns_support   = true
   enable_dns_hostnames = true
 
@@ -7,9 +11,8 @@ resource "aws_vpc" "this" {
 
   tags = merge(
     local.tags,
-    tomap({
+    {
       "Name" = "${local.vpc.abbr}-${local.aws.region.abbr}",
-    })
+    }
   )
-  provider = aws.this
 }

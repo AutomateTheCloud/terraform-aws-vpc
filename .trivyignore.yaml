@@ -1,0 +1,15 @@
+# Trivy findings that are deliberate. Each entry says why.
+misconfigurations:
+  - id: AWS-0164
+    statement: >-
+      The public subnets assign a public IPv4 address to every instance launched
+      in them. Holding internet-facing instances is what the public tier is for;
+      the private and restricted tiers never assign public addresses. The
+      network ACLs still deny all traffic until rules are added, and the README
+      says where to put workloads that must not be reachable.
+  - id: AWS-0178
+    statement: >-
+      Flow logs need a destination bucket, with a policy that allows log
+      delivery, that the caller owns and keeps; the module cannot create a safe
+      one on the caller's behalf. The flow_log input turns them on, and the
+      complete example shows the bucket and its policy.

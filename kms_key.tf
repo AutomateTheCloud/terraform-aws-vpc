@@ -1,57 +1,47 @@
+# Copyright 2025 Automate the Cloud Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# An optional key for encrypting data that workloads in this VPC store, such as
+# CloudWatch Logs log groups. Nothing in this module uses it.
 resource "aws_kms_key" "this" {
   count                   = var.enable_kms_key_data ? 1 : 0
+  region                  = var.region
   description             = "Data Encryption Key for ${local.vpc.name}"
   deletion_window_in_days = 10
   enable_key_rotation     = true
-  tags = merge(
-    local.tags
-  )
-  policy   = jsonencode(jsondecode(data.aws_iam_policy_document.kms_key-this[0].json))
-  provider = aws.this
-}
-moved {
-  from = aws_kms_key.this
-  to   = aws_kms_key.this[0]
+  policy                  = data.aws_iam_policy_document.kms_key-this[0].json
+  tags                    = local.tags
 }
 
-resource "aws_kms_alias" "this" {
-  count         = var.enable_kms_key_data ? 1 : 0
-  name          = "alias/data-${local.vpc.abbr}"
-  target_key_id = aws_kms_key.this[0].key_id
-  provider      = aws.this
-}
-moved {
-  from = aws_kms_alias.this
-  to   = aws_kms_alias.this[0]
+data "aws_service_principal" "logs" {
+  count        = var.enable_kms_key_data ? 1 : 0
+  region       = var.region
+  service_name = "logs"
 }
 
 data "aws_iam_policy_document" "kms_key-this" {
   count = var.enable_kms_key_data ? 1 : 0
+
+  # The account's IAM policies decide who else may use the key.
   statement {
     sid    = "Enable IAM User Permissions"
     effect = "Allow"
     principals {
       type        = "AWS"
-      identifiers = [data.aws_caller_identity.this.account_id]
+      identifiers = [local.aws.account.id]
     }
-    actions = [
-      "kms:*"
-    ]
-    resources = [
-      "*"
-    ]
+    actions   = ["kms:*"]
+    resources = ["*"]
   }
 
+  # CloudWatch Logs may use the key, but only for log groups in this account and Region.
   statement {
     sid    = "Enable CloudWatch Permissions"
     effect = "Allow"
     principals {
-      type = "Service"
-      identifiers = [
-        "logs.${local.aws.region.name}.amazonaws.com"
-      ]
+      type        = "Service"
+      identifiers = [data.aws_service_principal.logs[0].name]
     }
-
     actions = [
       "kms:Encrypt*",
       "kms:Decrypt*",
@@ -59,15 +49,11 @@ data "aws_iam_policy_document" "kms_key-this" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [
-      "*"
-    ]
+    resources = ["*"]
     condition {
       test     = "ArnLike"
       variable = "kms:EncryptionContext:aws:logs:arn"
-      values   = ["arn:aws:logs:${local.aws.region.name}:${data.aws_caller_identity.this.account_id}:log-group:*"]
+      values   = ["arn:${data.aws_partition.this.partition}:logs:${local.aws.region.name}:${local.aws.account.id}:log-group:*"]
     }
   }
-
-  provider = aws.this
 }
