@@ -1,4 +1,4 @@
-# Copyright 2025 Automate the Cloud Inc.
+# Copyright 2026 Automate the Cloud Inc.
 # SPDX-License-Identifier: Apache-2.0
 
 # One test per bug found in the review before 1.0.0.
